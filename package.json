@@ -2,7 +2,7 @@
 {
   "name": "popup-pro",
   "displayName": "Popup Pro",
-  "description": "A VSCode extension that adds an activity bar button to trigger a popup message.",
+  "description": "A VSCode extension that adds an activity bar button to trigger a popup message and provides Docusaurus Markdown preview.",
   "version": "0.0.1",
   "publisher": "your-publisher-name",
   "private": true,
@@ -14,10 +14,13 @@
     "vscode": "^1.80.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Programming Languages"
   ],
   "activationEvents": [
-    "*"
+    "onCommand:popup-pro.showPopup",
+    "onCommand:docusaurus-preview.show",
+    "onLanguage:markdown"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -26,6 +29,11 @@
         "command": "popup-pro.showPopup",
         "title": "Show Popup Pro Message",
         "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "docusaurus-preview.show",
+        "title": "Show Docusaurus Preview",
+        "icon": "$(markdown)"
       }
     ],
     "menus": {
@@ -34,6 +42,13 @@
           "command": "popup-pro.showPopup",
           "group": "navigation@1",
           "when": "true"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "docusaurus-preview.show",
+          "group": "navigation",
+          "when": "editorLangId == markdown"
         }
       ]
     }
@@ -45,10 +60,15 @@
     "lint": "eslint src --ext ts",
     "test": "vscode-test"
   },
+  "dependencies": {
+    "markdown-it": "^14.0.0",
+    "markdown-it-container": "^4.0.0"
+  },
   "devDependencies": {
     "@types/vscode": "^1.80.0",
     "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.6",
+    "@types/markdown-it": "^13.0.7",
     "typescript": "^5.3.3",
     "@vscode/test-cli": "^0.0.6",
     "@vscode/test-electron": "^2.3.9",
