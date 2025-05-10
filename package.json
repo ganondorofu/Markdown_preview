@@ -1,3 +1,4 @@
+
 {
   "name": "popup-pro",
   "displayName": "Popup Pro",
@@ -16,7 +17,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:popup-pro.showPopup"
+    "*"
   ],
   "main": "./out/extension.js",
   "contributes": {
