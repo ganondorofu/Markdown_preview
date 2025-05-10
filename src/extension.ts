@@ -3,6 +3,8 @@ import * as vscode from 'vscode';
 import MarkdownIt from 'markdown-it';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const mdContainer = require('markdown-it-container');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const taskLists = require('markdown-it-task-lists');
 
 let docusaurusPreviewPanel: vscode.WebviewPanel | undefined = undefined;
 let previewedDocumentUri: vscode.Uri | undefined = undefined;
@@ -13,7 +15,8 @@ const md = new MarkdownIt({ html: true, linkify: true, typographer: true })
     .use(mdContainer, 'info', createAdmonitionRenderer('info', 'Info'))
     .use(mdContainer, 'warning', createAdmonitionRenderer('warning', 'Warning'))
     .use(mdContainer, 'danger', createAdmonitionRenderer('danger', 'Danger'))
-    .use(mdContainer, 'caution', createAdmonitionRenderer('caution', 'Caution', 'warning')); // Caution uses warning styles
+    .use(mdContainer, 'caution', createAdmonitionRenderer('caution', 'Caution', 'warning')) // Caution uses warning styles
+    .use(taskLists); // For GFM task lists: - [ ] item
 
 function createAdmonitionRenderer(type: string, defaultTitle: string, cssClassTypeOverride?: string) {
     return {
@@ -69,8 +72,8 @@ export function activate(context: vscode.ExtensionContext) {
                 'Docusaurus Preview',
                 columnToShowIn,
                 {
-                    enableScripts: true, // Keep false if no scripts are needed, true for future flexibility
-                    localResourceRoots: [context.extensionUri] // For loading resources from extension
+                    enableScripts: true, 
+                    localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'resources'), context.extensionUri]
                 }
             );
             previewedDocumentUri = activeEditor.document.uri;
@@ -95,14 +98,6 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
     context.subscriptions.push(onDidChangeTextDocumentDisposable);
-
-    // Optional: If the active editor changes, and it's the one being previewed, ensure panel is up-to-date
-    // This is mostly handled by the button click logic for simplicity.
-    // vscode.window.onDidChangeActiveTextEditor(editor => {
-    // if (editor && docusaurusPreviewPanel && previewedDocumentUri && editor.document.uri.toString() === previewedDocumentUri.toString()) {
-    // updateWebviewContent(editor.document);
-    // }
-    // });
 }
 
 function updateWebviewContent(document: vscode.TextDocument) {
@@ -117,6 +112,7 @@ function updateWebviewContent(document: vscode.TextDocument) {
 function getWebviewHtml(content: string, webview: vscode.Webview): string {
     const nonce = getNonce(); // For Content Security Policy
 
+    // Note: VS Code theme variables are used for styling to match the editor's appearance.
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -190,12 +186,17 @@ function getWebviewHtml(content: string, webview: vscode.Webview): string {
             margin-bottom: 16px;
             display: block;
             overflow-x: auto; /* For wide tables */
+            border-spacing: 0;
         }
-        th, td {
+        table tr {
+            background-color: var(--vscode-editor-background);
+            border-top: 1px solid var(--vscode-editorWidget-border, #454545);
+        }
+        table th, table td {
             border: 1px solid var(--vscode-editorWidget-border, #454545);
-            padding: 8px 13px;
+            padding: 6px 13px;
         }
-        th {
+        table th {
             font-weight: 600;
             background-color: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
         }
@@ -212,6 +213,21 @@ function getWebviewHtml(content: string, webview: vscode.Webview): string {
             background: var(--vscode-editorWidget-border, #454545);
             margin: 24px 0;
         }
+
+        /* GFM Task List styling */
+        .task-list-item {
+            list-style-type: none;
+        }
+        /* Align checkbox with text and remove default list padding for task list items */
+        ul > li.task-list-item, ol > li.task-list-item {
+            list-style-type: none;
+            padding-left: 0; /* Remove padding that might be inherited from ul/ol */
+        }
+        .task-list-item input.task-list-item-checkbox {
+            margin: 0 0.2em 0.25em -1.4em; /* Adjust to pull checkbox to the left of text */
+            vertical-align: middle;
+        }
+
 
         /* Docusaurus admonition styling */
         .admonition {
@@ -276,3 +292,4 @@ export function deactivate() {
         docusaurusPreviewPanel.dispose();
     }
 }
+
