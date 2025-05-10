@@ -16,7 +16,7 @@ const md = new MarkdownIt({ html: true, linkify: true, typographer: true })
     .use(mdContainer, 'warning', createAdmonitionRenderer('warning', 'Warning'))
     .use(mdContainer, 'danger', createAdmonitionRenderer('danger', 'Danger'))
     .use(mdContainer, 'caution', createAdmonitionRenderer('caution', 'Caution', 'warning')) // Caution uses warning styles
-    .use(taskLists); // For GFM task lists: - [ ] item
+    .use(taskLists, { enabled: true }); // For GFM task lists: - [ ] item. Explicitly enable.
 
 function createAdmonitionRenderer(type: string, defaultTitle: string, cssClassTypeOverride?: string) {
     return {
@@ -41,84 +41,110 @@ function createAdmonitionRenderer(type: string, defaultTitle: string, cssClassTy
 }
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Congratulations, your extension "popup-pro" is now active!');
+    console.log('[PopupPro] Activating extension...');
 
-    let showPopupDisposable = vscode.commands.registerCommand('popup-pro.showPopup', () => {
-        vscode.window.showInformationMessage('Hello from Popup Pro! You triggered the popup.');
-    });
-    context.subscriptions.push(showPopupDisposable);
+    try {
+        let showPopupDisposable = vscode.commands.registerCommand('popup-pro.showPopup', () => {
+            vscode.window.showInformationMessage('Hello from Popup Pro! You triggered the popup.');
+        });
+        context.subscriptions.push(showPopupDisposable);
+        console.log('[PopupPro] Command "popup-pro.showPopup" registered.');
 
-    let showDocusaurusPreviewDisposable = vscode.commands.registerCommand('docusaurus-preview.show', () => {
-        const activeEditor = vscode.window.activeTextEditor;
-        if (!activeEditor || activeEditor.document.languageId !== 'markdown') {
-            vscode.window.showErrorMessage('No active Markdown editor found or current file is not Markdown.');
-            return;
-        }
-
-        const columnToShowIn = vscode.window.activeTextEditor
-            ? vscode.ViewColumn.Beside
-            : vscode.ViewColumn.One;
-
-        if (docusaurusPreviewPanel) {
-            docusaurusPreviewPanel.reveal(columnToShowIn);
-            // If revealing an existing panel for a new document, update its content and tracked URI
-            if (previewedDocumentUri?.toString() !== activeEditor.document.uri.toString()) {
-                 updateWebviewContent(activeEditor.document);
-                 previewedDocumentUri = activeEditor.document.uri;
+        let showDocusaurusPreviewDisposable = vscode.commands.registerCommand('docusaurus-preview.show', () => {
+            console.log('[PopupPro] Command "docusaurus-preview.show" invoked.');
+            const activeEditor = vscode.window.activeTextEditor;
+            if (!activeEditor || activeEditor.document.languageId !== 'markdown') {
+                vscode.window.showErrorMessage('No active Markdown editor found or current file is not Markdown.');
+                console.log('[PopupPro] "docusaurus-preview.show" aborted: No active markdown editor.');
+                return;
             }
-        } else {
-            docusaurusPreviewPanel = vscode.window.createWebviewPanel(
-                'docusaurusPreview',
-                'Docusaurus Preview',
-                columnToShowIn,
-                {
-                    enableScripts: true, 
-                    localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'resources'), context.extensionUri]
+
+            const columnToShowIn = vscode.window.activeTextEditor
+                ? vscode.ViewColumn.Beside
+                : vscode.ViewColumn.One;
+
+            if (docusaurusPreviewPanel) {
+                docusaurusPreviewPanel.reveal(columnToShowIn);
+                if (previewedDocumentUri?.toString() !== activeEditor.document.uri.toString()) {
+                     updateWebviewContent(activeEditor.document);
+                     previewedDocumentUri = activeEditor.document.uri;
+                     console.log('[PopupPro] Existing preview panel updated for new document:', activeEditor.document.uri.toString());
+                } else {
+                    console.log('[PopupPro] Existing preview panel revealed for document:', activeEditor.document.uri.toString());
                 }
-            );
-            previewedDocumentUri = activeEditor.document.uri;
-            updateWebviewContent(activeEditor.document);
+            } else {
+                docusaurusPreviewPanel = vscode.window.createWebviewPanel(
+                    'docusaurusPreview',
+                    'Docusaurus Preview',
+                    columnToShowIn,
+                    {
+                        enableScripts: true, 
+                        localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'resources'), context.extensionUri]
+                    }
+                );
+                previewedDocumentUri = activeEditor.document.uri;
+                updateWebviewContent(activeEditor.document);
+                console.log('[PopupPro] New preview panel created for document:', activeEditor.document.uri.toString());
 
-            docusaurusPreviewPanel.onDidDispose(
-                () => {
-                    docusaurusPreviewPanel = undefined;
-                    previewedDocumentUri = undefined;
-                },
-                null,
-                context.subscriptions
-            );
-        }
-    });
-    context.subscriptions.push(showDocusaurusPreviewDisposable);
+                docusaurusPreviewPanel.onDidDispose(
+                    () => {
+                        console.log('[PopupPro] Preview panel disposed.');
+                        docusaurusPreviewPanel = undefined;
+                        previewedDocumentUri = undefined;
+                    },
+                    null,
+                    context.subscriptions
+                );
+            }
+        });
+        context.subscriptions.push(showDocusaurusPreviewDisposable);
+        console.log('[PopupPro] Command "docusaurus-preview.show" registered.');
 
-    // Listener for text document changes to update the preview live
-    const onDidChangeTextDocumentDisposable = vscode.workspace.onDidChangeTextDocument(event => {
-        if (docusaurusPreviewPanel && previewedDocumentUri && event.document.uri.toString() === previewedDocumentUri.toString()) {
-            updateWebviewContent(event.document);
-        }
-    });
-    context.subscriptions.push(onDidChangeTextDocumentDisposable);
+        const onDidChangeTextDocumentDisposable = vscode.workspace.onDidChangeTextDocument(event => {
+            if (docusaurusPreviewPanel && previewedDocumentUri && event.document.uri.toString() === previewedDocumentUri.toString()) {
+                // console.log('[PopupPro] Document changed, updating preview for:', event.document.uri.toString()); // Optional: can be noisy
+                updateWebviewContent(event.document);
+            }
+        });
+        context.subscriptions.push(onDidChangeTextDocumentDisposable);
+        console.log('[PopupPro] onDidChangeTextDocument listener registered.');
+        console.log('[PopupPro] Extension activation completed successfully.');
+
+    } catch (error) {
+        console.error('[PopupPro] Error during activation:', error);
+        vscode.window.showErrorMessage(`Popup Pro (popup-pro) failed to activate: ${error instanceof Error ? error.message : String(error)}`);
+    }
 }
 
 function updateWebviewContent(document: vscode.TextDocument) {
     if (!docusaurusPreviewPanel) {
+        console.warn('[PopupPro] updateWebviewContent called but panel is undefined.');
         return;
     }
-    const markdownText = document.getText();
-    const htmlContent = md.render(markdownText);
-    docusaurusPreviewPanel.webview.html = getWebviewHtml(htmlContent, docusaurusPreviewPanel.webview);
+    try {
+        const markdownText = document.getText();
+        const htmlContent = md.render(markdownText);
+        docusaurusPreviewPanel.webview.html = getWebviewHtml(htmlContent, docusaurusPreviewPanel.webview, document.uri, vscode.Uri.joinPath(vscode.Uri.file(document.uri.fsPath), '..'));
+        // console.log('[PopupPro] Webview content updated for:', document.uri.toString()); // Optional: can be noisy
+    } catch (error) {
+        console.error('[PopupPro] Error rendering markdown or updating webview:', error);
+        vscode.window.showErrorMessage(`Error updating Docusaurus preview: ${error instanceof Error ? error.message : String(error)}`);
+        docusaurusPreviewPanel.webview.html = `<html><body><h1>Error rendering Markdown</h1><p>${error instanceof Error ? error.message : String(error)}</p></body></html>`;
+    }
 }
 
-function getWebviewHtml(content: string, webview: vscode.Webview): string {
-    const nonce = getNonce(); // For Content Security Policy
+function getWebviewHtml(content: string, webview: vscode.Webview, documentUri: vscode.Uri, baseUri: vscode.Uri): string {
+    const nonce = getNonce(); 
 
-    // Note: VS Code theme variables are used for styling to match the editor's appearance.
+    const baseHref = webview.asWebviewUri(baseUri).toString() + '/';
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; img-src ${webview.cspSource} https: data:; script-src 'nonce-${nonce}';">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="${baseHref}">
     <title>Docusaurus Preview</title>
     <style>
         body {
@@ -138,7 +164,7 @@ function getWebviewHtml(content: string, webview: vscode.Webview): string {
         h2 { font-size: 1.75em; border-bottom: 1px solid var(--vscode-editorWidget-border, #454545); padding-bottom: .3em;}
         h3 { font-size: 1.5em; }
         h4 { font-size: 1.25em; }
-        h5 { font-size: 1em; }
+        h5 { font-size: 1em; } /* Admonition titles use h5 */
         h6 { font-size: 0.85em; }
         
         p { margin-bottom: 1em; }
@@ -185,7 +211,7 @@ function getWebviewHtml(content: string, webview: vscode.Webview): string {
             width: auto;
             margin-bottom: 16px;
             display: block;
-            overflow-x: auto; /* For wide tables */
+            overflow-x: auto; 
             border-spacing: 0;
         }
         table tr {
@@ -205,6 +231,8 @@ function getWebviewHtml(content: string, webview: vscode.Webview): string {
             max-width: 100%;
             height: auto;
             border-radius: 3px;
+            display: block; /* Better default for images */
+            margin-bottom: 1em; /* Spacing for images */
         }
         
         hr {
@@ -215,19 +243,17 @@ function getWebviewHtml(content: string, webview: vscode.Webview): string {
         }
 
         /* GFM Task List styling */
-        .task-list-item {
-            list-style-type: none;
+        ul.contains-task-list, ol.contains-task-list {
+            padding-left: 1em; /* Adjust overall list padding if needed */
         }
-        /* Align checkbox with text and remove default list padding for task list items */
-        ul > li.task-list-item, ol > li.task-list-item {
-            list-style-type: none;
-            padding-left: 0; /* Remove padding that might be inherited from ul/ol */
+        li.task-list-item {
+            list-style-type: none !important; /* Override default list style */
+            margin-left: -1.2em; /* Pull item back to align checkbox */
         }
-        .task-list-item input.task-list-item-checkbox {
-            margin: 0 0.2em 0.25em -1.4em; /* Adjust to pull checkbox to the left of text */
+        input.task-list-item-checkbox {
+            margin: 0 0.35em 0.25em -0.2em; /* Fine-tune checkbox alignment */
             vertical-align: middle;
         }
-
 
         /* Docusaurus admonition styling */
         .admonition {
@@ -239,11 +265,11 @@ function getWebviewHtml(content: string, webview: vscode.Webview): string {
             border-left-width: .3rem;
             box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
         }
-        .admonition-heading h5 {
+        .admonition-heading h5 { /* Ensure this targets the h5 inside admonition headings */
             font-weight: bold;
             margin-top: 0;
             margin-bottom: 0.5rem;
-            font-size: 1em;
+            font-size: 1em; /* Explicitly 1em for admonition titles */
             color: inherit;
         }
         .admonition-content > p:last-child {
@@ -288,8 +314,9 @@ function getNonce() {
 }
 
 export function deactivate() {
+    console.log('[PopupPro] Deactivating extension...');
     if (docusaurusPreviewPanel) {
         docusaurusPreviewPanel.dispose();
     }
+    console.log('[PopupPro] Extension deactivated.');
 }
-
